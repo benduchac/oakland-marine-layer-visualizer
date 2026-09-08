@@ -5,7 +5,9 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { BOUNDS, TRAILHEADS } from "@/lib/geo";
 import type { ViewMode } from "@/lib/mode";
-import type { HrrrProxyRecord, SoundingRecord } from "@/lib/types";
+import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
+
+const METERS_TO_FEET = 3.28084;
 
 const DEM_SOURCE_ID = "marine-layer-dem";
 const PLANE_SOURCE_ID = "marine-layer-plane";
@@ -86,11 +88,19 @@ interface MarineLayerMapProps {
   mode: ViewMode;
   sounding: SoundingRecord | null;
   hrrr: HrrrProxyRecord | null;
+  onTrailheadElevations?: (elevations: TrailheadElevation[]) => void;
 }
 
-export default function MarineLayerMap({ mapboxToken, mode, sounding, hrrr }: MarineLayerMapProps) {
+export default function MarineLayerMap({
+  mapboxToken,
+  mode,
+  sounding,
+  hrrr,
+  onTrailheadElevations,
+}: MarineLayerMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const loadedRef = useRef(false);
   const overlayRetriesRef = useRef(0);
   // Inversion height (meters) the plane overlay was last built for, so a
@@ -158,14 +168,11 @@ export default function MarineLayerMap({ mapboxToken, mode, sounding, hrrr }: Ma
         el.style.background = "#1d4ed8";
         el.style.border = "2px solid white";
         el.style.boxShadow = "0 0 2px rgba(0,0,0,0.5)";
-        new mapboxgl.Marker({ element: el })
+        const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([trailhead.lon, trailhead.lat])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 12 }).setHTML(
-              `<strong>${trailhead.name}</strong><br/>~${trailhead.elevationFt.toLocaleString()} ft`
-            )
-          )
+          .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${trailhead.name}</strong><br/>Loading elevation…`))
           .addTo(map);
+        markersRef.current.set(trailhead.name, marker);
       }
 
       loadedRef.current = true;
@@ -179,6 +186,59 @@ export default function MarineLayerMap({ mapboxToken, mode, sounding, hrrr }: Ma
     // Only re-run if the token changes (map must be recreated).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapboxToken]);
+
+  // Query real terrain elevation for each trailhead once DEM tiles are
+  // available, and report it up. Retries with a forced repaint for the same
+  // reason the plane overlay does — 'idle' can fire before terrain tiles for
+  // these exact points have loaded.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    let cancelled = false;
+    let retries = 0;
+    const MAX_RETRIES = 8;
+
+    const queryElevations = () => {
+      if (cancelled) return;
+
+      const results: TrailheadElevation[] = TRAILHEADS.map((t) => {
+        const elevationM = map.queryTerrainElevation([t.lon, t.lat]);
+        return { ...t, elevationFt: elevationM != null ? elevationM * METERS_TO_FEET : null };
+      });
+
+      const allResolved = results.every((r) => r.elevationFt != null);
+      if (!allResolved && retries < MAX_RETRIES) {
+        retries += 1;
+        map.once("idle", queryElevations);
+        map.triggerRepaint();
+        return;
+      }
+
+      for (const r of results) {
+        if (r.elevationFt == null) continue;
+        markersRef.current
+          .get(r.name)
+          ?.setPopup(
+            new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${r.name}</strong><br/>~${Math.round(r.elevationFt).toLocaleString()} ft`)
+          );
+      }
+      onTrailheadElevations?.(results);
+    };
+
+    if (loadedRef.current) {
+      map.once("idle", queryElevations);
+      map.triggerRepaint();
+    } else {
+      map.once("load", () => {
+        map.once("idle", queryElevations);
+        map.triggerRepaint();
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onTrailheadElevations]);
 
   // Toggle layer visibility + rebuild the Mode B overlay when relevant data changes.
   useEffect(() => {

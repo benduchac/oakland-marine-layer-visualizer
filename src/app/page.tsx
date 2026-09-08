@@ -5,8 +5,9 @@ import MarineLayerMap from "@/components/MarineLayerMap";
 import ModeToggle from "@/components/ModeToggle";
 import InfoPanel from "@/components/InfoPanel";
 import DevSoundingPicker from "@/components/DevSoundingPicker";
+import SummaryCard from "@/components/SummaryCard";
 import type { FetchStatus, ViewMode } from "@/lib/mode";
-import type { HrrrProxyRecord, SoundingRecord } from "@/lib/types";
+import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -28,6 +29,7 @@ export default function Home() {
   const [soundingOverride, setSoundingOverride] = useState<SoundingRecord | null>(null);
   const [soundingStatus, setSoundingStatus] = useState<FetchStatus>("loading");
   const [hrrrStatus, setHrrrStatus] = useState<FetchStatus>("loading");
+  const [trailheadElevations, setTrailheadElevations] = useState<TrailheadElevation[]>([]);
 
   useEffect(() => {
     fetchOrNull<SoundingRecord>("/api/sounding").then((data) => {
@@ -64,7 +66,13 @@ export default function Home() {
   return (
     <div className="relative flex h-dvh w-full flex-col">
       {mapboxToken ? (
-        <MarineLayerMap mapboxToken={mapboxToken} mode={mode} sounding={displayedSounding} hrrr={hrrr} />
+        <MarineLayerMap
+          mapboxToken={mapboxToken}
+          mode={mode}
+          sounding={displayedSounding}
+          hrrr={hrrr}
+          onTrailheadElevations={setTrailheadElevations}
+        />
       ) : (
         <div className="flex flex-1 items-center justify-center bg-zinc-100 p-8 text-center text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           Set <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
@@ -75,6 +83,12 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-3 p-4">
         <div className="pointer-events-auto">
           <ModeToggle mode={mode} onChange={setMode} />
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute top-4 left-4">
+        <div className="pointer-events-auto">
+          <SummaryCard trailheads={trailheadElevations} sounding={displayedSounding} />
         </div>
       </div>
 

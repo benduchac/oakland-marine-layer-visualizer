@@ -15,16 +15,15 @@ export interface Trailhead {
   name: string;
   lat: number;
   lon: number;
-  elevationFt: number;
 }
 
-// Approximate coordinates/elevations — nice-to-have per spec §4, not
-// authoritative.
+// Elevation isn't stored here — it's queried live from the same Mapbox
+// Terrain-RGB data the marine-layer overlay uses (see MarineLayerMap), so
+// it's always consistent with what the map itself is showing at that point.
 export const TRAILHEADS: Trailhead[] = [
-  { name: "Sibley Volcanic", lat: 37.8388, lon: -122.1811, elevationFt: 1100 },
-  { name: "Redwood Regional (Skyline Gate)", lat: 37.8195, lon: -122.1646, elevationFt: 1210 },
-  { name: "Tilden (Inspiration Point)", lat: 37.8973, lon: -122.2298, elevationFt: 1280 },
-  { name: "Chabot (MacDonald Gate)", lat: 37.7936, lon: -122.1265, elevationFt: 940 },
+  { name: "Steam Trains Overlook", lat: 37.879803, lon: -122.221572 },
+  { name: "Piedmont Pines", lat: 37.82823, lon: -122.198951 },
+  { name: "Grizzly Peak Log", lat: 37.872287, lon: -122.220358 },
 ];
 
 export interface LatLon {

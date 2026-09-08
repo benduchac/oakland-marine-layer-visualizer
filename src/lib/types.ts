@@ -18,3 +18,10 @@ export interface HrrrProxyRecord {
   samples: GridSample[];
   fetchedAt: string;
 }
+
+export interface TrailheadElevation {
+  name: string;
+  lat: number;
+  lon: number;
+  elevationFt: number | null;
+}
