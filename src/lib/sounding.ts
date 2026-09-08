@@ -98,16 +98,40 @@ export function findInversionHeightM(rows: SoundingRow[]): number | null {
   return lastSaturatedHeight;
 }
 
-function formatDatetimeParam(date: Date): string {
+function formatDatetimeParam(date: Date, hourUTC: number): string {
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(date.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} 12:00:00`;
+  const hh = String(hourUTC).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:00:00`;
 }
 
 export interface LatestSounding {
   launchTimeUTC: string;
   inversionHeightMeters: number | null;
+}
+
+/** Fetches + parses a single KOAK launch for an arbitrary date/hour. */
+export async function fetchSoundingForLaunch(launchDate: Date, hourUTC: number): Promise<LatestSounding | null> {
+  const datetimeParam = formatDatetimeParam(launchDate, hourUTC);
+
+  const url = new URL(SOUNDING_ENDPOINT);
+  url.searchParams.set("datetime", datetimeParam);
+  url.searchParams.set("id", KOAK_STATION_ID);
+  url.searchParams.set("type", "TEXT:LIST");
+  url.searchParams.set("src", "UNKNOWN");
+
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) return null;
+
+  const html = await res.text();
+  const rows = parseSoundingTable(html);
+  if (rows.length === 0) return null;
+
+  return {
+    launchTimeUTC: `${datetimeParam.replace(" ", "T")}Z`,
+    inversionHeightMeters: findInversionHeightM(rows),
+  };
 }
 
 /**
@@ -122,25 +146,8 @@ export async function fetchLatestSounding(): Promise<LatestSounding | null> {
   for (const daysAgo of [0, 1]) {
     const launchDate = new Date(now);
     launchDate.setUTCDate(launchDate.getUTCDate() - daysAgo);
-    const datetimeParam = formatDatetimeParam(launchDate);
-
-    const url = new URL(SOUNDING_ENDPOINT);
-    url.searchParams.set("datetime", datetimeParam);
-    url.searchParams.set("id", KOAK_STATION_ID);
-    url.searchParams.set("type", "TEXT:LIST");
-    url.searchParams.set("src", "UNKNOWN");
-
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    if (!res.ok) continue;
-
-    const html = await res.text();
-    const rows = parseSoundingTable(html);
-    if (rows.length === 0) continue;
-
-    return {
-      launchTimeUTC: `${datetimeParam.replace(" ", "T")}Z`,
-      inversionHeightMeters: findInversionHeightM(rows),
-    };
+    const result = await fetchSoundingForLaunch(launchDate, 12);
+    if (result) return result;
   }
 
   return null;
