@@ -5,7 +5,7 @@ import MarineLayerMap from "@/components/MarineLayerMap";
 import ModeToggle from "@/components/ModeToggle";
 import InfoPanel from "@/components/InfoPanel";
 import DevSoundingPicker from "@/components/DevSoundingPicker";
-import type { ViewMode } from "@/lib/mode";
+import type { FetchStatus, ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord } from "@/lib/types";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -26,14 +26,40 @@ export default function Home() {
   const [sounding, setSounding] = useState<SoundingRecord | null>(null);
   const [hrrr, setHrrr] = useState<HrrrProxyRecord | null>(null);
   const [soundingOverride, setSoundingOverride] = useState<SoundingRecord | null>(null);
+  const [soundingStatus, setSoundingStatus] = useState<FetchStatus>("loading");
+  const [hrrrStatus, setHrrrStatus] = useState<FetchStatus>("loading");
 
   useEffect(() => {
-    fetchOrNull<SoundingRecord>("/api/sounding").then(setSounding);
-    fetchOrNull<HrrrProxyRecord>("/api/hrrr-proxy").then(setHrrr);
+    fetchOrNull<SoundingRecord>("/api/sounding").then((data) => {
+      setSounding(data);
+      setSoundingStatus(data ? "ready" : "empty");
+    });
+    fetchOrNull<HrrrProxyRecord>("/api/hrrr-proxy").then((data) => {
+      setHrrr(data);
+      setHrrrStatus(data ? "ready" : "empty");
+    });
   }, []);
+
+  // "empty" means no stored data yet (e.g. cron hasn't run in this
+  // environment) — retrying hits the cron route directly to fetch + store
+  // fresh data, then updates from its response.
+  async function retrySounding() {
+    setSoundingStatus("loading");
+    const data = await fetchOrNull<SoundingRecord>("/api/cron/fetch-sounding");
+    setSounding(data);
+    setSoundingStatus(data ? "ready" : "empty");
+  }
+
+  async function retryHrrr() {
+    setHrrrStatus("loading");
+    const data = await fetchOrNull<HrrrProxyRecord>("/api/cron/fetch-hrrr-proxy");
+    setHrrr(data);
+    setHrrrStatus(data ? "ready" : "empty");
+  }
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const displayedSounding = soundingOverride ?? sounding;
+  const displayedSoundingStatus = soundingOverride ? "ready" : soundingStatus;
 
   return (
     <div className="relative flex h-dvh w-full flex-col">
@@ -54,7 +80,16 @@ export default function Home() {
 
       <div className="pointer-events-none absolute bottom-4 left-4">
         <div className="pointer-events-auto">
-          <InfoPanel mode={mode} sounding={displayedSounding} hrrr={hrrr} isDevOverride={soundingOverride != null} />
+          <InfoPanel
+            mode={mode}
+            sounding={displayedSounding}
+            hrrr={hrrr}
+            isDevOverride={soundingOverride != null}
+            soundingStatus={displayedSoundingStatus}
+            hrrrStatus={hrrrStatus}
+            onRetrySounding={retrySounding}
+            onRetryHrrr={retryHrrr}
+          />
         </div>
       </div>
 
