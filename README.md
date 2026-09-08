@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Oakland Marine Layer Visualizer
 
-## Getting Started
+A web app that shows whether the Oakland/Berkeley hills are above or below
+the marine layer at a given time, so you can tell whether a hike will be in
+fog or in sun. Maps the East Bay hills with two toggleable data modes:
 
-First, run the development server:
+- **Forecast (HRRR grid)** — a spatial coverage-percent overlay sampled from
+  NWS gridpoint forecast data across the hills.
+- **This morning's real sounding (flat plane)** — the actual KOAK radiosonde
+  inversion height from the ~12Z (5am local) launch, projected as a flat
+  plane against terrain elevation. Below the plane = in the marine layer;
+  above = clear.
+
+See [`marine-layer-spec.md`](./marine-layer-spec.md) for the full design spec.
+
+## Stack
+
+Next.js (App Router) + Mapbox GL JS, Vercel Serverless Functions + Cron for
+the two data pipelines, Vercel Blob for storage (falls back to local JSON
+files under `.data/` when no Blob store is configured).
+
+## Getting started
 
 ```bash
+npm install
+cp .env.local.example .env.local   # fill in NEXT_PUBLIC_MAPBOX_TOKEN at minimum
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The map won't render
+without a Mapbox access token — get one at
+[account.mapbox.com/access-tokens](https://account.mapbox.com/access-tokens/).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To populate data locally, hit the cron routes directly:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+curl http://localhost:3000/api/cron/fetch-sounding
+curl http://localhost:3000/api/cron/fetch-hrrr-proxy
+```
 
-## Learn More
+## Deploying
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Link the project to Vercel, set the env vars from `.env.local.example`
+(a Blob store's `BLOB_READ_WRITE_TOKEN` is provisioned automatically when
+attached in the Vercel dashboard), and the cron schedule in `vercel.json`
+takes over from there.
