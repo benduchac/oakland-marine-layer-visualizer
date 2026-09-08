@@ -2,14 +2,17 @@
 
 A web app that shows whether the Oakland/Berkeley hills are above or below
 the marine layer at a given time, so you can tell whether a hike will be in
-fog or in sun. Maps the East Bay hills with two toggleable data modes:
+fog or in sun. Uses the actual KOAK radiosonde inversion height from the
+~12Z (5am local) launch, projected as a flat plane against terrain
+elevation — below the plane = in the marine layer, above = clear.
 
-- **Forecast (HRRR grid)** — a spatial coverage-percent overlay sampled from
-  NWS gridpoint forecast data across the hills.
-- **This morning's real sounding (flat plane)** — the actual KOAK radiosonde
-  inversion height from the ~12Z (5am local) launch, projected as a flat
-  plane against terrain elevation. Below the plane = in the marine layer;
-  above = clear.
+A second mode (**Forecast/HRRR grid** — a spatial coverage-percent overlay
+sampled from NWS gridpoint data) exists in the code but is hidden behind a
+dev-only toggle for now: it's a much harder surface to verify (which model
+run, which forecast hour, etc.) than the sounding, which can be checked
+against a real historical observation any time via the dev sounding picker.
+Its cron isn't scheduled in production ([`vercel.json`](./vercel.json)), but
+the route still works for manual/dev testing.
 
 See [`marine-layer-spec.md`](./marine-layer-spec.md) for the full design spec.
 

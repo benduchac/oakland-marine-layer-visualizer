@@ -36,10 +36,14 @@ export default function Home() {
       setSounding(data);
       setSoundingStatus(data ? "ready" : "empty");
     });
-    fetchOrNull<HrrrProxyRecord>("/api/hrrr-proxy").then((data) => {
-      setHrrr(data);
-      setHrrrStatus(data ? "ready" : "empty");
-    });
+    // Mode A (HRRR grid) is dev-only for now — see IS_DEV gate on
+    // ModeToggle below — so skip fetching data real users will never see.
+    if (IS_DEV) {
+      fetchOrNull<HrrrProxyRecord>("/api/hrrr-proxy").then((data) => {
+        setHrrr(data);
+        setHrrrStatus(data ? "ready" : "empty");
+      });
+    }
   }, []);
 
   // "empty" means no stored data yet (e.g. cron hasn't run in this
@@ -80,11 +84,13 @@ export default function Home() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-3 p-4">
-        <div className="pointer-events-auto">
-          <ModeToggle mode={mode} onChange={setMode} />
+      {IS_DEV && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-3 p-4">
+          <div className="pointer-events-auto">
+            <ModeToggle mode={mode} onChange={setMode} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="pointer-events-none absolute top-4 left-4">
         <div className="pointer-events-auto">
