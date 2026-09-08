@@ -60,42 +60,58 @@ const RELH_SATURATION_THRESHOLD = 97;
 // How many rows above a sub-threshold reading to check for recovery before
 // treating the drop as sustained rather than a single noisy sample.
 const SUSTAINED_DROP_LOOKAHEAD = 2;
+// Bounds the search to plausible marine-layer depths for these hills (the
+// tallest terrain in the bounding box is ~580m). A real winter case showed a
+// shallow ~30m surface fog patch sitting below the actual stratus deck — if
+// the search stopped at the first saturated run it'd report that patch's top
+// (a few meters) instead of the real deck a few hundred meters higher. This
+// cap keeps the search from also swinging too far the other way and picking
+// up unrelated mid-level moisture as if it were the marine layer.
+const MAX_SEARCH_HEIGHT_M = 1200;
 
 /**
- * Inversion base / marine layer top, per spec §3.2: walk up from the surface,
- * find the last height where RELH stayed >= ~97% before it sustains a drop.
- * Returns null if the profile never reaches saturation near the surface
- * (i.e. no marine layer / stratus deck this morning) — a legitimate result,
- * not a parse failure.
+ * Inversion base / marine layer top, per spec §3.2: scans up from the
+ * surface for every run of rows where RELH stays >= ~97%, and returns the
+ * top of the *highest* such run — not the first. A shallow surface-based fog
+ * patch (common on still winter mornings) can be saturated and end well
+ * below the real stratus deck sitting above it; taking the first run would
+ * report the patch's top instead of the deck's. Returns null if the profile
+ * never reaches saturation within MAX_SEARCH_HEIGHT_M (i.e. no marine layer
+ * / stratus deck this morning) — a legitimate result, not a parse failure.
  */
 export function findInversionHeightM(rows: SoundingRow[]): number | null {
-  const sorted = [...rows].sort((a, b) => a.heightM - b.heightM);
-  let lastSaturatedHeight: number | null = null;
-  // The surface layer often ramps up to saturation gradually (RH climbing
-  // from ~90% over several hundred meters) before the marine layer proper;
-  // those sub-threshold rows aren't "the drop" and must be skipped, not
-  // treated as ending the search before it's begun.
-  let enteredSaturatedLayer = false;
+  const sorted = [...rows]
+    .filter((r) => r.heightM <= MAX_SEARCH_HEIGHT_M)
+    .sort((a, b) => a.heightM - b.heightM);
+
+  let highestRunTop: number | null = null;
+  let currentRunTop: number | null = null;
 
   for (let i = 0; i < sorted.length; i++) {
     const row = sorted[i];
     if (row.relh == null) continue;
 
     if (row.relh >= RELH_SATURATION_THRESHOLD) {
-      enteredSaturatedLayer = true;
-      lastSaturatedHeight = row.heightM;
+      currentRunTop = row.heightM;
       continue;
     }
 
-    if (!enteredSaturatedLayer) continue;
+    if (currentRunTop == null) continue; // haven't hit saturation yet at all
 
     const lookahead = sorted.slice(i + 1, i + 1 + SUSTAINED_DROP_LOOKAHEAD);
     const recovers = lookahead.some((r) => r.relh != null && r.relh >= RELH_SATURATION_THRESHOLD);
-    if (recovers) continue;
-    break;
+    if (recovers) continue; // brief dip within the same run, not the end of it
+
+    // Sustained drop: this run has ended. Keep it (overwriting any prior,
+    // lower run) and keep scanning upward for a possibly higher one.
+    highestRunTop = currentRunTop;
+    currentRunTop = null;
   }
 
-  return lastSaturatedHeight;
+  // The profile can still be saturated at the edge of the search window.
+  if (currentRunTop != null) highestRunTop = currentRunTop;
+
+  return highestRunTop;
 }
 
 function formatDatetimeParam(date: Date, hourUTC: number): string {
