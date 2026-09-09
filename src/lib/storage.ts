@@ -1,4 +1,4 @@
-import { list, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -14,12 +14,10 @@ function blobConfigured(): boolean {
 
 export async function readJSON<T>(key: string): Promise<T | null> {
   if (blobConfigured()) {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    const match = blobs.find((b) => b.pathname === key) ?? blobs[0];
-    if (!match) return null;
-    const res = await fetch(match.url, { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const result = await get(key, { access: "private" });
+    if (!result?.stream) return null;
+    const text = await new Response(result.stream).text();
+    return JSON.parse(text) as T;
   }
 
   try {
@@ -34,7 +32,7 @@ export async function readJSON<T>(key: string): Promise<T | null> {
 export async function writeJSON(key: string, data: unknown): Promise<void> {
   if (blobConfigured()) {
     await put(key, JSON.stringify(data), {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
