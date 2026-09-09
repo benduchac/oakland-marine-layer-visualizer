@@ -9,7 +9,7 @@ import path from "path";
 const LOCAL_DATA_DIR = path.join(process.cwd(), ".data");
 
 function blobConfigured(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN;
+  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 export async function readJSON<T>(key: string): Promise<T | null> {
