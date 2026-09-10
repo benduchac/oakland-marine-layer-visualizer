@@ -1,4 +1,5 @@
 import { KOAK_STATION_ID } from "./geo";
+import type { SoundingRecord } from "./types";
 
 // University of Wyoming upper-air sounding archive. The old
 // weather.uwyo.edu cgi-bin endpoint now 302s to this host and a rewritten
@@ -79,6 +80,16 @@ const SUSTAINED_DROP_LOOKAHEAD = 2;
 // cap keeps the search from also swinging too far the other way and picking
 // up unrelated mid-level moisture as if it were the marine layer.
 const MAX_SEARCH_HEIGHT_M = 1200;
+
+// Range for the simplified sounding profile shown to users (0-2000ft) —
+// covers the full plausible marine-layer depth plus headroom above it, per
+// MAX_SEARCH_HEIGHT_M, without dragging in unrelated upper-air data.
+const PROFILE_MAX_HEIGHT_M = 610; // 2000ft
+
+/** Rows for the simplified profile view, trimmed to PROFILE_MAX_HEIGHT_M and sorted low-to-high. */
+function buildProfile(rows: SoundingRow[]): SoundingRow[] {
+  return rows.filter((r) => r.heightM <= PROFILE_MAX_HEIGHT_M).sort((a, b) => a.heightM - b.heightM);
+}
 
 /**
  * Scans up from the surface for every run of rows where RELH stays >= the
@@ -192,6 +203,31 @@ export interface LatestSounding {
   inversionHeightMeters: number | null;
   uncertainCapHeightMeters: number | null;
   onshoreFlowNearInversion: boolean;
+  profile: SoundingRow[];
+}
+
+const METERS_TO_FEET = 3.28084;
+const celsiusToFahrenheit = (c: number) => (c * 9) / 5 + 32;
+
+/** Builds the full SoundingRecord shape (unit conversions + profile) shared by the cron, dev-preview, and dev-seed routes. */
+export function buildSoundingRecord(stationId: string, result: LatestSounding): SoundingRecord {
+  return {
+    stationId,
+    launchTimeUTC: result.launchTimeUTC,
+    inversionHeightMeters: result.inversionHeightMeters,
+    inversionHeightFeet: result.inversionHeightMeters != null ? result.inversionHeightMeters * METERS_TO_FEET : null,
+    uncertainCapHeightMeters: result.uncertainCapHeightMeters,
+    uncertainCapHeightFeet:
+      result.uncertainCapHeightMeters != null ? result.uncertainCapHeightMeters * METERS_TO_FEET : null,
+    onshoreFlowNearInversion: result.onshoreFlowNearInversion,
+    fetchedAt: new Date().toISOString(),
+    profile: result.profile.map((row) => ({
+      heightFeet: row.heightM * METERS_TO_FEET,
+      tempF: row.tempC != null ? celsiusToFahrenheit(row.tempC) : null,
+      dewpointF: row.dewpointC != null ? celsiusToFahrenheit(row.dewpointC) : null,
+      relh: row.relh,
+    })),
+  };
 }
 
 /** Fetches + parses a single KOAK launch for an arbitrary date/hour. */
@@ -218,6 +254,7 @@ export async function fetchSoundingForLaunch(launchDate: Date, hourUTC: number):
     inversionHeightMeters,
     uncertainCapHeightMeters: inversionHeightMeters == null ? findUncertainCapHeightM(rows) : null,
     onshoreFlowNearInversion: detectOnshoreFlowNearInversion(rows, inversionHeightMeters),
+    profile: buildProfile(rows),
   };
 }
 

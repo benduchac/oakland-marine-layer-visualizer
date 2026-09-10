@@ -1,6 +1,8 @@
+import { useState } from "react";
 import Legend from "./Legend";
+import SoundingProfileModal from "./SoundingProfileModal";
 import type { FetchStatus, ViewMode } from "@/lib/mode";
-import type { HrrrProxyRecord, SoundingRecord } from "@/lib/types";
+import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
 function formatTimestamp(iso: string | undefined): string {
   if (!iso) return "unknown";
@@ -8,6 +10,20 @@ function formatTimestamp(iso: string | undefined): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function formatInversionLabel(sounding: SoundingRecord | null): string {
+  if (sounding?.inversionHeightFeet != null) {
+    return `~${Math.round(sounding.inversionHeightFeet).toLocaleString()} ft (${Math.round(
+      sounding.inversionHeightMeters ?? 0
+    ).toLocaleString()} m)`;
+  }
+  if (sounding?.uncertainCapHeightFeet != null) {
+    return `Uncertain cap possible at ~${Math.round(sounding.uncertainCapHeightFeet).toLocaleString()} ft (${Math.round(
+      sounding.uncertainCapHeightMeters ?? 0
+    ).toLocaleString()} m)`;
+  }
+  return "No inversion detected in this morning's sounding";
 }
 
 interface StatusMessageProps {
@@ -38,6 +54,7 @@ interface InfoPanelProps {
   mode: ViewMode;
   sounding: SoundingRecord | null;
   hrrr: HrrrProxyRecord | null;
+  trailheads: TrailheadElevation[];
   isDevOverride?: boolean;
   soundingStatus: FetchStatus;
   hrrrStatus: FetchStatus;
@@ -49,12 +66,16 @@ export default function InfoPanel({
   mode,
   sounding,
   hrrr,
+  trailheads,
   isDevOverride,
   soundingStatus,
   hrrrStatus,
   onRetrySounding,
   onRetryHrrr,
 }: InfoPanelProps) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const hasProfile = (sounding?.profile?.length ?? 0) > 0;
+
   return (
     <div className="w-full max-w-sm space-y-3 rounded-lg border border-zinc-200 bg-white/95 p-4 shadow-md backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95">
       {mode === "sounding" ? (
@@ -73,23 +94,24 @@ export default function InfoPanel({
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-zinc-500">Inversion height</div>
-              <div className="font-medium">
-                {sounding?.inversionHeightFeet != null
-                  ? `~${Math.round(sounding.inversionHeightFeet).toLocaleString()} ft (${Math.round(
-                      sounding.inversionHeightMeters ?? 0
-                    ).toLocaleString()} m)`
-                  : sounding?.uncertainCapHeightFeet != null
-                    ? `Uncertain cap possible at ~${Math.round(sounding.uncertainCapHeightFeet).toLocaleString()} ft (${Math.round(
-                        sounding.uncertainCapHeightMeters ?? 0
-                      ).toLocaleString()} m)`
-                    : "No inversion detected in this morning's sounding"}
-              </div>
+              {hasProfile ? (
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen(true)}
+                  className="-mx-1 rounded px-1 text-left font-medium underline decoration-dotted underline-offset-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  {formatInversionLabel(sounding)}
+                </button>
+              ) : (
+                <div className="font-medium">{formatInversionLabel(sounding)}</div>
+              )}
               {sounding?.inversionHeightFeet == null && sounding?.uncertainCapHeightFeet != null && (
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Humidity never reached full saturation in this sounding — this height is a possible cap, not a
                   confirmed marine layer.
                 </p>
               )}
+              {hasProfile && <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tap for the full profile</p>}
             </div>
             <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
               Based on a single real balloon observation at Oakland Airport, projected as a flat
@@ -106,6 +128,9 @@ export default function InfoPanel({
         </div>
       )}
       <Legend mode={mode} />
+      {profileOpen && sounding && (
+        <SoundingProfileModal sounding={sounding} trailheads={trailheads} onClose={() => setProfileOpen(false)} />
+      )}
     </div>
   );
 }

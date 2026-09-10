@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
+import { readCachedSounding, writeCachedSounding } from "@/lib/devSoundingCache";
 import { KOAK_STATION_ID } from "@/lib/geo";
-import { fetchSoundingForLaunch } from "@/lib/sounding";
+import { buildSoundingRecord, fetchSoundingForLaunch } from "@/lib/sounding";
 import type { SoundingRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const METERS_TO_FEET = 3.28084;
-
 // Lets a developer preview how Mode B looks for a specific historical
 // launch (e.g. a real marine-layer morning) instead of whatever today's
 // sounding happens to be. Dev-only: never available in a production build,
-// and never writes to storage — this is preview-only, separate from the
-// cron-fetched "latest" record real users see.
+// and never writes to the real storage backend — this is preview-only,
+// separate from the cron-fetched "latest" record real users see.
+//
+// Backed by a local dev cache (see lib/devSoundingCache.ts): the live
+// Wyoming archive fetch alone can take 10-15s, so once a date has been
+// loaded once (here or via /api/dev/seed-soundings) it comes back
+// instantly on every later load.
 export async function GET(request: Request) {
   if (process.env.NODE_ENV === "production") {
     return new NextResponse("Not found", { status: 404 });
@@ -26,6 +30,11 @@ export async function GET(request: Request) {
   }
   const hourUTC = hourParam === "0" ? 0 : 12;
 
+  const cached = await readCachedSounding<SoundingRecord>(dateParam, hourUTC);
+  if (cached) {
+    return NextResponse.json({ ok: true, data: cached, cached: true });
+  }
+
   const launchDate = new Date(`${dateParam}T00:00:00Z`);
   if (Number.isNaN(launchDate.getTime())) {
     return NextResponse.json({ ok: false, error: "invalid date" }, { status: 400 });
@@ -36,18 +45,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "No sounding data for that launch" }, { status: 404 });
   }
 
-  const record: SoundingRecord = {
-    stationId: KOAK_STATION_ID,
-    launchTimeUTC: result.launchTimeUTC,
-    inversionHeightMeters: result.inversionHeightMeters,
-    inversionHeightFeet:
-      result.inversionHeightMeters != null ? result.inversionHeightMeters * METERS_TO_FEET : null,
-    uncertainCapHeightMeters: result.uncertainCapHeightMeters,
-    uncertainCapHeightFeet:
-      result.uncertainCapHeightMeters != null ? result.uncertainCapHeightMeters * METERS_TO_FEET : null,
-    onshoreFlowNearInversion: result.onshoreFlowNearInversion,
-    fetchedAt: new Date().toISOString(),
-  };
+  const record = buildSoundingRecord(KOAK_STATION_ID, result);
+  await writeCachedSounding(dateParam, hourUTC, record);
 
-  return NextResponse.json({ ok: true, data: record });
+  return NextResponse.json({ ok: true, data: record, cached: false });
 }

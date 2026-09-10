@@ -108,6 +108,7 @@ export default function Home() {
             mode={mode}
             sounding={displayedSounding}
             hrrr={hrrr}
+            trailheads={trailheadElevations}
             isDevOverride={soundingOverride != null}
             soundingStatus={displayedSoundingStatus}
             hrrrStatus={hrrrStatus}

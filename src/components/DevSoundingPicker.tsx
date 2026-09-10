@@ -1,11 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { DEV_SOUNDING_PRESETS as PRESETS } from "@/lib/devSoundingPresets";
 import type { SoundingRecord } from "@/lib/types";
-
-const PRESETS = [
-  { label: "8/25/2026 · reference marine layer (~1,730 ft)", date: "2026-08-25", hour: "12" },
-];
 
 interface DevSoundingPickerProps {
   onOverride: (record: SoundingRecord | null) => void;
@@ -14,9 +11,11 @@ interface DevSoundingPickerProps {
 
 export default function DevSoundingPicker({ onOverride, isOverridden }: DevSoundingPickerProps) {
   const [date, setDate] = useState(PRESETS[0].date);
-  const [hour, setHour] = useState(PRESETS[0].hour);
+  const [hour, setHour] = useState<string>(PRESETS[0].hour);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [seedStatus, setSeedStatus] = useState<"idle" | "seeding" | "done" | "error">("idle");
+  const [seedSummary, setSeedSummary] = useState("");
 
   async function load(loadDate: string, loadHour: string) {
     setStatus("loading");
@@ -30,6 +29,24 @@ export default function DevSoundingPicker({ onOverride, isOverridden }: DevSound
     } catch (err) {
       setStatus("error");
       setErrorMessage(err instanceof Error ? err.message : "Failed to load sounding");
+    }
+  }
+
+  async function seedAll() {
+    setSeedStatus("seeding");
+    setSeedSummary("");
+    try {
+      const res = await fetch("/api/dev/seed-soundings");
+      const body = await res.json();
+      if (!body.ok) throw new Error("Seed request failed");
+      const fetched = body.results.filter((r: { status: string }) => r.status === "fetched").length;
+      const cached = body.results.filter((r: { status: string }) => r.status === "cached").length;
+      const errors = body.results.filter((r: { status: string }) => r.status === "error").length;
+      setSeedSummary(`${fetched} fetched, ${cached} already cached${errors ? `, ${errors} failed` : ""}`);
+      setSeedStatus("done");
+    } catch {
+      setSeedStatus("error");
+      setSeedSummary("Failed to seed cache");
     }
   }
 
@@ -64,7 +81,7 @@ export default function DevSoundingPicker({ onOverride, isOverridden }: DevSound
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
         {PRESETS.map((preset) => (
           <button
             key={`${preset.date}-${preset.hour}`}
@@ -74,11 +91,22 @@ export default function DevSoundingPicker({ onOverride, isOverridden }: DevSound
               setHour(preset.hour);
               load(preset.date, preset.hour);
             }}
-            className="rounded border border-amber-300 px-1.5 py-0.5 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900"
+            className="rounded border border-amber-300 px-1.5 py-0.5 text-left text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900"
           >
             {preset.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={seedAll}
+          disabled={seedStatus === "seeding"}
+          className="rounded border border-amber-400 px-1.5 py-0.5 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900"
+        >
+          {seedStatus === "seeding" ? "Seeding cache…" : "Seed all presets into cache"}
+        </button>
         {isOverridden && (
           <button
             type="button"
@@ -90,6 +118,11 @@ export default function DevSoundingPicker({ onOverride, isOverridden }: DevSound
         )}
       </div>
 
+      {seedSummary && (
+        <div className={seedStatus === "error" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-300"}>
+          {seedSummary}
+        </div>
+      )}
       {status === "error" && <div className="text-red-700 dark:text-red-400">{errorMessage}</div>}
     </div>
   );
