@@ -42,6 +42,10 @@ export async function GET(request: Request) {
     inversionHeightMeters: result.inversionHeightMeters,
     inversionHeightFeet:
       result.inversionHeightMeters != null ? result.inversionHeightMeters * METERS_TO_FEET : null,
+    uncertainCapHeightMeters: result.uncertainCapHeightMeters,
+    uncertainCapHeightFeet:
+      result.uncertainCapHeightMeters != null ? result.uncertainCapHeightMeters * METERS_TO_FEET : null,
+    onshoreFlowNearInversion: result.onshoreFlowNearInversion,
     fetchedAt: new Date().toISOString(),
   };
 

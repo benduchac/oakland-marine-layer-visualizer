@@ -9,6 +9,10 @@ export default function Legend({ mode }: { mode: ViewMode }) {
           <span>In the marine layer (terrain below the inversion plane)</span>
         </div>
         <div className="flex items-center gap-2">
+          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: "rgba(217,119,6,0.4)" }} />
+          <span>Possibly in an uncertain cap (humidity never fully saturated)</span>
+        </div>
+        <div className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-sm border border-zinc-400" />
           <span>Above the marine layer (terrain above the plane)</span>
         </div>

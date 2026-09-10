@@ -3,6 +3,9 @@ export interface SoundingRecord {
   launchTimeUTC: string;
   inversionHeightMeters: number | null;
   inversionHeightFeet: number | null;
+  uncertainCapHeightMeters: number | null;
+  uncertainCapHeightFeet: number | null;
+  onshoreFlowNearInversion: boolean;
   fetchedAt: string;
 }
 

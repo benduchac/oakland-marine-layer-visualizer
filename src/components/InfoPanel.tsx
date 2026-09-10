@@ -78,8 +78,18 @@ export default function InfoPanel({
                   ? `~${Math.round(sounding.inversionHeightFeet).toLocaleString()} ft (${Math.round(
                       sounding.inversionHeightMeters ?? 0
                     ).toLocaleString()} m)`
-                  : "No inversion detected in this morning's sounding"}
+                  : sounding?.uncertainCapHeightFeet != null
+                    ? `Uncertain cap possible at ~${Math.round(sounding.uncertainCapHeightFeet).toLocaleString()} ft (${Math.round(
+                        sounding.uncertainCapHeightMeters ?? 0
+                      ).toLocaleString()} m)`
+                    : "No inversion detected in this morning's sounding"}
               </div>
+              {sounding?.inversionHeightFeet == null && sounding?.uncertainCapHeightFeet != null && (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Humidity never reached full saturation in this sounding — this height is a possible cap, not a
+                  confirmed marine layer.
+                </p>
+              )}
             </div>
             <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
               Based on a single real balloon observation at Oakland Airport, projected as a flat

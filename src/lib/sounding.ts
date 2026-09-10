@@ -12,14 +12,17 @@ export interface SoundingRow {
   tempC: number | null;
   dewpointC: number | null;
   relh: number | null;
+  drctDeg: number | null;
+  spedMs: number | null;
 }
 
 // The profile table uses fixed 7-character-wide columns (verified against a
 // live response), not whitespace-delimited fields — some columns (DWPT/RELH
 // at upper levels) can be entirely blank, which whitespace-splitting would
-// misalign.
+// misalign. MIXR is parsed only to keep the fixed-width offsets aligned for
+// the DRCT/SPED columns after it — its value itself is unused.
 const COLUMN_WIDTH = 7;
-const COLUMNS = ["pressureHpa", "heightM", "tempC", "dewpointC", "relh"] as const;
+const COLUMNS = ["pressureHpa", "heightM", "tempC", "dewpointC", "relh", "mixr", "drctDeg", "spedMs"] as const;
 
 function parseField(raw: string): number | null {
   const trimmed = raw.trim();
@@ -51,12 +54,20 @@ export function parseSoundingTable(html: string): SoundingRow[] {
       tempC: values.tempC,
       dewpointC: values.dewpointC,
       relh: values.relh,
+      drctDeg: values.drctDeg,
+      spedMs: values.spedMs,
     });
   }
   return rows;
 }
 
 const RELH_SATURATION_THRESHOLD = 97;
+// Fallback threshold when nothing reaches full saturation. Confirmed against
+// two real cases (2025-05-16, 2026-05-29) where RELH plateaued in the
+// high-80s/low-90s without ever crossing 97 — 85 lands in a stable spot for
+// both (80 was too loose and picked up unrelated moisture near the top of
+// the search window instead of the real cap).
+const UNCERTAIN_RELH_THRESHOLD = 85;
 // How many rows above a sub-threshold reading to check for recovery before
 // treating the drop as sustained rather than a single noisy sample.
 const SUSTAINED_DROP_LOOKAHEAD = 2;
@@ -70,16 +81,15 @@ const SUSTAINED_DROP_LOOKAHEAD = 2;
 const MAX_SEARCH_HEIGHT_M = 1200;
 
 /**
- * Inversion base / marine layer top, per spec §3.2: scans up from the
- * surface for every run of rows where RELH stays >= ~97%, and returns the
- * top of the *highest* such run — not the first. A shallow surface-based fog
- * patch (common on still winter mornings) can be saturated and end well
- * below the real stratus deck sitting above it; taking the first run would
- * report the patch's top instead of the deck's. Returns null if the profile
- * never reaches saturation within MAX_SEARCH_HEIGHT_M (i.e. no marine layer
- * / stratus deck this morning) — a legitimate result, not a parse failure.
+ * Scans up from the surface for every run of rows where RELH stays >= the
+ * given threshold, and returns the top of the *highest* such run — not the
+ * first. A shallow surface-based fog patch (common on still winter mornings)
+ * can be saturated and end well below the real stratus deck sitting above
+ * it; taking the first run would report the patch's top instead of the
+ * deck's. Returns null if the profile never reaches the threshold within
+ * MAX_SEARCH_HEIGHT_M.
  */
-export function findInversionHeightM(rows: SoundingRow[]): number | null {
+function findSaturatedRunTopM(rows: SoundingRow[], thresholdPercent: number): number | null {
   const sorted = [...rows]
     .filter((r) => r.heightM <= MAX_SEARCH_HEIGHT_M)
     .sort((a, b) => a.heightM - b.heightM);
@@ -91,15 +101,15 @@ export function findInversionHeightM(rows: SoundingRow[]): number | null {
     const row = sorted[i];
     if (row.relh == null) continue;
 
-    if (row.relh >= RELH_SATURATION_THRESHOLD) {
+    if (row.relh >= thresholdPercent) {
       currentRunTop = row.heightM;
       continue;
     }
 
-    if (currentRunTop == null) continue; // haven't hit saturation yet at all
+    if (currentRunTop == null) continue; // haven't hit the threshold yet at all
 
     const lookahead = sorted.slice(i + 1, i + 1 + SUSTAINED_DROP_LOOKAHEAD);
-    const recovers = lookahead.some((r) => r.relh != null && r.relh >= RELH_SATURATION_THRESHOLD);
+    const recovers = lookahead.some((r) => r.relh != null && r.relh >= thresholdPercent);
     if (recovers) continue; // brief dip within the same run, not the end of it
 
     // Sustained drop: this run has ended. Keep it (overwriting any prior,
@@ -114,6 +124,61 @@ export function findInversionHeightM(rows: SoundingRow[]): number | null {
   return highestRunTop;
 }
 
+/** Inversion base / marine layer top, per spec §3.2 — the confirmed (RELH >= 97) reading. */
+export function findInversionHeightM(rows: SoundingRow[]): number | null {
+  return findSaturatedRunTopM(rows, RELH_SATURATION_THRESHOLD);
+}
+
+/**
+ * Fallback for mornings where nothing reaches full saturation but the
+ * profile still shows a real moist layer (e.g. thin/patchy fog nearby, or a
+ * balloon that just missed the densest part of the layer) — only meaningful
+ * when findInversionHeightM already returned null. Not a substitute for the
+ * confirmed reading: report this to users as an uncertain possibility, not
+ * a detected marine layer.
+ */
+export function findUncertainCapHeightM(rows: SoundingRow[]): number | null {
+  return findSaturatedRunTopM(rows, UNCERTAIN_RELH_THRESHOLD);
+}
+
+// Onshore quadrant (wind blowing FROM the Pacific/Golden Gate gap toward the
+// hills) and a speed high enough to be actively advecting air, not just
+// drifting. Confirmed against two real cases where the flat-plane model
+// under-predicted marine layer extent on the hills: 2026-07-17 (a westerly
+// jet just above the detected inversion top) and 2026-01-23 (onshore flow
+// already active within the saturated layer itself, near its top).
+const ONSHORE_MIN_DEG = 190;
+const ONSHORE_MAX_DEG = 330;
+const ONSHORE_MIN_SPEED_MS = 3;
+// How far below/above the inversion top to look — wide enough to catch
+// onshore flow either within the layer's upper reaches or in a jet sitting
+// just above it, per the two cases above.
+const ONSHORE_SEARCH_BAND_M = 300;
+
+/**
+ * Flags onshore wind near the inversion top as a caveat, not a correction:
+ * we don't attempt to model how much higher such flow might push the fog,
+ * just surface that the flat-plane estimate is more likely to be an
+ * understatement on windward slopes this morning.
+ */
+export function detectOnshoreFlowNearInversion(rows: SoundingRow[], inversionHeightM: number | null): boolean {
+  if (inversionHeightM == null) return false;
+
+  const lo = Math.max(0, inversionHeightM - ONSHORE_SEARCH_BAND_M);
+  const hi = inversionHeightM + ONSHORE_SEARCH_BAND_M;
+
+  return rows.some(
+    (r) =>
+      r.heightM >= lo &&
+      r.heightM <= hi &&
+      r.spedMs != null &&
+      r.spedMs >= ONSHORE_MIN_SPEED_MS &&
+      r.drctDeg != null &&
+      r.drctDeg >= ONSHORE_MIN_DEG &&
+      r.drctDeg <= ONSHORE_MAX_DEG
+  );
+}
+
 function formatDatetimeParam(date: Date, hourUTC: number): string {
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -125,6 +190,8 @@ function formatDatetimeParam(date: Date, hourUTC: number): string {
 export interface LatestSounding {
   launchTimeUTC: string;
   inversionHeightMeters: number | null;
+  uncertainCapHeightMeters: number | null;
+  onshoreFlowNearInversion: boolean;
 }
 
 /** Fetches + parses a single KOAK launch for an arbitrary date/hour. */
@@ -144,9 +211,13 @@ export async function fetchSoundingForLaunch(launchDate: Date, hourUTC: number):
   const rows = parseSoundingTable(html);
   if (rows.length === 0) return null;
 
+  const inversionHeightMeters = findInversionHeightM(rows);
+
   return {
     launchTimeUTC: `${datetimeParam.replace(" ", "T")}Z`,
-    inversionHeightMeters: findInversionHeightM(rows),
+    inversionHeightMeters,
+    uncertainCapHeightMeters: inversionHeightMeters == null ? findUncertainCapHeightM(rows) : null,
+    onshoreFlowNearInversion: detectOnshoreFlowNearInversion(rows, inversionHeightMeters),
   };
 }
 

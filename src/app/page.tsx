@@ -6,6 +6,7 @@ import ModeToggle from "@/components/ModeToggle";
 import InfoPanel from "@/components/InfoPanel";
 import DevSoundingPicker from "@/components/DevSoundingPicker";
 import SummaryCard from "@/components/SummaryCard";
+import WindAdvisoryCard from "@/components/WindAdvisoryCard";
 import type { FetchStatus, ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
@@ -92,9 +93,12 @@ export default function Home() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute top-4 left-4">
+      <div className="pointer-events-none absolute top-4 left-4 flex flex-col items-start gap-2">
         <div className="pointer-events-auto">
           <SummaryCard trailheads={trailheadElevations} sounding={displayedSounding} />
+        </div>
+        <div className="pointer-events-auto">
+          <WindAdvisoryCard sounding={displayedSounding} />
         </div>
       </div>
 
