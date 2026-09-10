@@ -94,29 +94,27 @@ export default function InfoPanel({
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-zinc-500">Inversion height</div>
-              {hasProfile ? (
-                <button
-                  type="button"
-                  onClick={() => setProfileOpen(true)}
-                  className="-mx-1 rounded px-1 text-left font-medium underline decoration-dotted underline-offset-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  {formatInversionLabel(sounding)}
-                </button>
-              ) : (
-                <div className="font-medium">{formatInversionLabel(sounding)}</div>
-              )}
+              <div className="font-medium">{formatInversionLabel(sounding)}</div>
               {sounding?.inversionHeightFeet == null && sounding?.uncertainCapHeightFeet != null && (
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Humidity never reached full saturation in this sounding — this height is a possible cap, not a
                   confirmed marine layer.
                 </p>
               )}
-              {hasProfile && <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tap for the full profile</p>}
             </div>
             <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
               Based on a single real balloon observation at Oakland Airport, projected as a flat
               elevation plane — actual marine layer depth varies by location.
             </p>
+            {hasProfile && (
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="w-full rounded-md border border-zinc-300 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                View sounding detail
+              </button>
+            )}
           </>
         )
       ) : hrrrStatus !== "ready" ? (
