@@ -1,5 +1,7 @@
 # Oakland Marine Layer Visualizer
 
+<img width="3200" height="1542" alt="image" src="https://github.com/user-attachments/assets/4ed5f890-0838-49e1-a8ee-9b37edbfd1cc" />
+
 A web app that shows whether the Oakland/Berkeley hills are above or below
 the marine layer at a given time, so you can tell whether a hike will be in
 fog or in sun. Uses the actual KOAK radiosonde inversion height from the
