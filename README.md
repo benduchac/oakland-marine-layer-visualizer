@@ -13,16 +13,24 @@ sampled from NWS gridpoint data) exists in the code but is hidden behind a
 dev-only toggle for now: it's a much harder surface to verify (which model
 run, which forecast hour, etc.) than the sounding, which can be checked
 against a real historical observation any time via the dev sounding picker.
-Its cron isn't scheduled in production ([`vercel.json`](./vercel.json)), but
-the route still works for manual/dev testing.
+It isn't triggered in production, but the route still works for manual/dev
+testing.
 
 See [`marine-layer-spec.md`](./marine-layer-spec.md) for the full design spec.
 
 ## Stack
 
-Next.js (App Router) + Mapbox GL JS, Vercel Serverless Functions + Cron for
-the two data pipelines, Vercel Blob for storage (falls back to local JSON
-files under `.data/` when no Blob store is configured).
+Next.js (App Router) + Mapbox GL JS, Vercel Serverless Functions for the two
+data pipelines, Vercel Blob for storage (falls back to local JSON files under
+`.data/` when no Blob store is configured).
+
+The sounding fetch is triggered by a GitHub Actions schedule
+([`.github/workflows/fetch-sounding.yml`](./.github/workflows/fetch-sounding.yml)),
+not Vercel Cron — Hobby-tier Vercel cron jobs only have ±59min scheduling
+precision, which isn't tight enough for "fresh data before a pre-dawn
+departure." The workflow sweeps 12:15–13:00 UTC every 5 minutes, since the
+12Z KOAK sounding's actual posting time to the archive isn't pinned down
+precisely (observed as late as 12:43Z on one real morning).
 
 ## Getting started
 
@@ -45,7 +53,10 @@ curl http://localhost:3000/api/cron/fetch-hrrr-proxy
 
 ## Deploying
 
-Link the project to Vercel, set the env vars from `.env.local.example`
+Link the project to Vercel and set the env vars from `.env.local.example`
 (a Blob store's `BLOB_READ_WRITE_TOKEN` is provisioned automatically when
-attached in the Vercel dashboard), and the cron schedule in `vercel.json`
-takes over from there.
+attached in the Vercel dashboard). The GitHub Actions workflow starts
+running on its schedule once it's on the default branch — no extra setup
+needed unless `CRON_SECRET` is set in Vercel, in which case the workflow's
+`curl` call needs an `Authorization: Bearer` header added, sourced from a
+matching GitHub Actions secret.

@@ -1,0 +1,20 @@
+name: Fetch sounding
+
+# Vercel Hobby cron jobs only have +/-59min scheduling precision, which is
+# useless for "have fresh data before a pre-dawn bike ride." GitHub Actions
+# schedules are much tighter, so this sweeps the window where the KOAK 12Z
+# sounding tends to post (observed as late as 12:43Z on 2026-09-11) instead
+# of relying on Vercel's own cron feature.
+on:
+  schedule:
+    - cron: "15,20,25,30,35,40,45,50,55 12 * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger sounding fetch
+        run: curl -sf https://steamer-view.vercel.app/api/cron/fetch-sounding
