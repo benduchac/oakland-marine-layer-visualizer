@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { BOUNDS, TRAILHEADS } from "@/lib/geo";
+import { LAYER_COLOR, LAYER_OVERLAY_ALPHA, UNCERTAIN_OVERLAY_ALPHA, hexToRgba255 } from "@/lib/colors";
 import type { ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
@@ -39,12 +40,15 @@ interface OverlayColor {
   a: number;
 }
 
-// Confirmed (RELH >= 97) marine layer — matches Legend.tsx.
-const CONFIRMED_OVERLAY_COLOR: OverlayColor = { r: 200, g: 60, b: 60, a: 130 };
-// Uncertain cap (RELH >= 85 fallback, per sounding.ts) — amber and lower
-// opacity so it reads as "possible," not a confirmed detection, even though
-// the height itself has checked out against real observations.
-const UNCERTAIN_OVERLAY_COLOR: OverlayColor = { r: 217, g: 119, b: 6, a: 100 };
+// Confirmed (RELH >= 97) marine layer — pale gray, near-opaque, so the wash
+// reads as actual fog sitting on terrain rather than a red alert; matches
+// Legend.tsx (src/lib/colors.ts is the shared source).
+const CONFIRMED_OVERLAY_COLOR: OverlayColor = hexToRgba255(LAYER_COLOR, LAYER_OVERLAY_ALPHA);
+// Uncertain cap (RELH >= 85 fallback, per sounding.ts) — same color, a
+// slightly lighter wash, so it reads as "possible," not a confirmed
+// detection, even though the height itself has checked out against real
+// observations.
+const UNCERTAIN_OVERLAY_COLOR: OverlayColor = hexToRgba255(LAYER_COLOR, UNCERTAIN_OVERLAY_ALPHA);
 
 // terrainMap must be the hidden, BOUNDS-framed map (terrainMapRef) — not the
 // visible one, whose queryTerrainElevation results depend on wherever the
@@ -215,7 +219,7 @@ export default function MarineLayerMap({
         el.style.width = "10px";
         el.style.height = "10px";
         el.style.borderRadius = "50%";
-        el.style.background = "#1d4ed8";
+        el.style.background = "#0e7aab"; // accent-ink — ties trailhead pins to the same sky/clear color family
         el.style.border = "2px solid white";
         el.style.boxShadow = "0 0 2px rgba(0,0,0,0.5)";
         const marker = new mapboxgl.Marker({ element: el })

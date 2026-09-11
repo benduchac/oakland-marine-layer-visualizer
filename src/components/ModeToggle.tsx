@@ -9,30 +9,28 @@ interface ModeToggleProps {
 
 export default function ModeToggle({ mode, onChange }: ModeToggleProps) {
   return (
-    <div className="inline-flex rounded-full border border-zinc-300 bg-white p-1 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="inline-flex rounded-full border border-surface-border bg-surface p-1 text-sm shadow-sm">
       <button
         type="button"
         onClick={() => onChange("hrrr")}
         aria-pressed={mode === "hrrr"}
+        title="Forecast (HRRR grid)"
         className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
-          mode === "hrrr"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          mode === "hrrr" ? "bg-accent text-white" : "text-muted hover:bg-background"
         }`}
       >
-        Forecast (HRRR grid)
+        Forecast
       </button>
       <button
         type="button"
         onClick={() => onChange("sounding")}
         aria-pressed={mode === "sounding"}
+        title="This morning's real sounding (flat plane)"
         className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
-          mode === "sounding"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          mode === "sounding" ? "bg-accent text-white" : "text-muted hover:bg-background"
         }`}
       >
-        This morning&apos;s real sounding (flat plane)
+        Sounding
       </button>
     </div>
   );

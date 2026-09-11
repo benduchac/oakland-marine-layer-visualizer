@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Legend from "./Legend";
 import SoundingProfileModal from "./SoundingProfileModal";
 import type { FetchStatus, ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
@@ -12,18 +11,27 @@ function formatTimestamp(iso: string | undefined): string {
   });
 }
 
-function formatInversionLabel(sounding: SoundingRecord | null): string {
+// null `value` means the label is prose (e.g. "no inversion"), not a figure
+// — the caller renders `value` in the data/mono face and `suffix` in the
+// normal body face, so only the actual numbers get tabular treatment.
+function formatInversionLabel(sounding: SoundingRecord | null): { value: string | null; suffix: string } {
   if (sounding?.inversionHeightFeet != null) {
-    return `~${Math.round(sounding.inversionHeightFeet).toLocaleString()} ft (${Math.round(
-      sounding.inversionHeightMeters ?? 0
-    ).toLocaleString()} m)`;
+    return {
+      value: `~${Math.round(sounding.inversionHeightFeet).toLocaleString()} ft (${Math.round(
+        sounding.inversionHeightMeters ?? 0
+      ).toLocaleString()} m)`,
+      suffix: "",
+    };
   }
   if (sounding?.uncertainCapHeightFeet != null) {
-    return `Uncertain cap possible at ~${Math.round(sounding.uncertainCapHeightFeet).toLocaleString()} ft (${Math.round(
-      sounding.uncertainCapHeightMeters ?? 0
-    ).toLocaleString()} m)`;
+    return {
+      value: `~${Math.round(sounding.uncertainCapHeightFeet).toLocaleString()} ft (${Math.round(
+        sounding.uncertainCapHeightMeters ?? 0
+      ).toLocaleString()} m)`,
+      suffix: " — possible cap, not confirmed",
+    };
   }
-  return "No inversion detected in this morning's sounding";
+  return { value: null, suffix: "No inversion detected in this morning's sounding" };
 }
 
 interface StatusMessageProps {
@@ -34,15 +42,15 @@ interface StatusMessageProps {
 
 function StatusMessage({ status, onRetry, label }: StatusMessageProps) {
   if (status === "loading") {
-    return <div className="text-sm text-zinc-500 dark:text-zinc-400">Loading {label}…</div>;
+    return <div className="text-sm text-muted">Loading {label}…</div>;
   }
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-zinc-500 dark:text-zinc-400">No {label} data yet.</span>
+      <span className="text-muted">No {label} data yet.</span>
       <button
         type="button"
         onClick={onRetry}
-        className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+        className="rounded border border-surface-border px-2 py-0.5 text-xs font-medium hover:bg-background"
       >
         Click to fetch
       </button>
@@ -76,8 +84,10 @@ export default function InfoPanel({
   const [profileOpen, setProfileOpen] = useState(false);
   const hasProfile = (sounding?.profile?.length ?? 0) > 0;
 
+  const inversion = formatInversionLabel(sounding);
+
   return (
-    <div className="w-full max-w-sm space-y-3 rounded-lg border border-zinc-200 bg-white/95 p-4 shadow-md backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95">
+    <div className="w-full max-w-sm space-y-3 rounded-lg border border-surface-border bg-surface/95 p-4 shadow-md backdrop-blur">
       {mode === "sounding" ? (
         soundingStatus !== "ready" ? (
           <StatusMessage status={soundingStatus} onRetry={onRetrySounding} label="sounding" />
@@ -89,28 +99,37 @@ export default function InfoPanel({
               </div>
             )}
             <div>
-              <div className="text-xs uppercase tracking-wide text-zinc-500">Launch time (KOAK, 12Z)</div>
-              <div className="font-medium">{formatTimestamp(sounding?.launchTimeUTC)}</div>
+              <div className="text-xs uppercase tracking-wide text-muted">Launch time (KOAK, 12Z)</div>
+              <div className="font-data font-medium">{formatTimestamp(sounding?.launchTimeUTC)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-zinc-500">Inversion height</div>
-              <div className="font-medium">{formatInversionLabel(sounding)}</div>
+              <div className="text-xs uppercase tracking-wide text-muted">Inversion height</div>
+              <div className="font-medium">
+                {inversion.value ? <span className="font-data">{inversion.value}</span> : null}
+                {inversion.suffix}
+              </div>
               {sounding?.inversionHeightFeet == null && sounding?.uncertainCapHeightFeet != null && (
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1 text-xs text-muted">
                   Humidity never reached full saturation in this sounding — this height is a possible cap, not a
                   confirmed marine layer.
                 </p>
               )}
+              {sounding?.onshoreFlowNearInversion && (
+                <p className="mt-1 text-xs text-accent-ink">
+                  Onshore flow near the inversion top may be pushing the marine layer higher on windward ridges than
+                  this flat-plane estimate shows.
+                </p>
+              )}
             </div>
-            <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              Based on a single real balloon observation at Oakland Airport, projected as a flat
-              elevation plane — actual marine layer depth varies by location.
+            <p className="border-l-2 border-accent/50 py-0.5 pl-2 text-xs text-muted">
+              Calculated from the 12Z (5AM PT) weather balloon launch at Oakland Airport, projected as a flat
+              elevation plane.
             </p>
             {hasProfile && (
               <button
                 type="button"
                 onClick={() => setProfileOpen(true)}
-                className="w-full rounded-md border border-zinc-300 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="w-full rounded-md border border-surface-border py-1.5 text-xs font-medium hover:bg-background"
               >
                 View sounding detail
               </button>
@@ -121,11 +140,10 @@ export default function InfoPanel({
         <StatusMessage status={hrrrStatus} onRetry={onRetryHrrr} label="forecast" />
       ) : (
         <div>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Forecast data valid</div>
-          <div className="font-medium">{formatTimestamp(hrrr?.validTime)}</div>
+          <div className="text-xs uppercase tracking-wide text-muted">Forecast data valid</div>
+          <div className="font-data font-medium">{formatTimestamp(hrrr?.validTime)}</div>
         </div>
       )}
-      <Legend mode={mode} />
       {profileOpen && sounding && (
         <SoundingProfileModal sounding={sounding} trailheads={trailheads} onClose={() => setProfileOpen(false)} />
       )}

@@ -213,7 +213,7 @@ export default function SoundingProfileModal({ sounding, trailheads, onClose }: 
                 {HEIGHT_TICKS.map((ft) => (
                   <div
                     key={ft}
-                    className="absolute right-2 text-[9px] text-zinc-500 dark:text-zinc-400"
+                    className="font-data absolute right-2 text-[9px] text-zinc-500 dark:text-zinc-400"
                     style={{ top: pixelY(ft), transform: "translateY(-50%)" }}
                   >
                     {ft === 0 ? "Sea level" : `${ft.toLocaleString()}'`}
@@ -269,7 +269,7 @@ export default function SoundingProfileModal({ sounding, trailheads, onClose }: 
                 </div>
                 {bandTopFt != null && (
                   <div className="absolute inset-x-0 flex justify-center" style={{ top: pixelY(bandTopFt), transform: "translateY(-50%)" }}>
-                    <span className="rounded bg-white/95 px-1 py-0.5 text-[9px] font-semibold text-zinc-800 shadow-sm dark:bg-zinc-900/95 dark:text-zinc-100">
+                    <span className="font-data rounded bg-white/95 px-1 py-0.5 text-[9px] font-semibold text-zinc-800 shadow-sm dark:bg-zinc-900/95 dark:text-zinc-100">
                       {Math.round(bandTopFt).toLocaleString()}&apos;
                     </span>
                   </div>
@@ -282,7 +282,7 @@ export default function SoundingProfileModal({ sounding, trailheads, onClose }: 
                 {tickRows.map(({ ft, row }) => (
                   <div
                     key={ft}
-                    className="absolute right-1 text-[9px] tabular-nums text-zinc-600 dark:text-zinc-300"
+                    className="font-data absolute right-1 text-[9px] text-zinc-600 dark:text-zinc-300"
                     style={{ top: pixelY(ft), transform: "translateY(-50%)" }}
                   >
                     {row?.relh != null ? `${Math.round(row.relh)}%` : "—"}
@@ -300,7 +300,7 @@ export default function SoundingProfileModal({ sounding, trailheads, onClose }: 
                 {tickRows.map(({ ft, row }) => (
                   <div
                     key={ft}
-                    className="absolute right-1 text-[9px] tabular-nums text-zinc-600 dark:text-zinc-300"
+                    className="font-data absolute right-1 text-[9px] text-zinc-600 dark:text-zinc-300"
                     style={{ top: pixelY(ft), transform: "translateY(-50%)" }}
                   >
                     {row?.tempF != null ? `${Math.round(row.tempF)}°` : "—"}

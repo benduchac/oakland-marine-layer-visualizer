@@ -6,7 +6,6 @@ import ModeToggle from "@/components/ModeToggle";
 import InfoPanel from "@/components/InfoPanel";
 import DevSoundingPicker from "@/components/DevSoundingPicker";
 import SummaryCard from "@/components/SummaryCard";
-import WindAdvisoryCard from "@/components/WindAdvisoryCard";
 import type { FetchStatus, ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
@@ -79,9 +78,9 @@ export default function Home() {
           onTrailheadElevations={setTrailheadElevations}
         />
       ) : (
-        <div className="flex flex-1 items-center justify-center bg-zinc-100 p-8 text-center text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
-          Set <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
-          your environment to load the map.
+        <div className="flex flex-1 items-center justify-center bg-background p-8 text-center text-muted">
+          Set <code className="font-data rounded bg-surface px-1">NEXT_PUBLIC_MAPBOX_TOKEN</code> in your
+          environment to load the map.
         </div>
       )}
 
@@ -96,9 +95,6 @@ export default function Home() {
       <div className="pointer-events-none absolute top-4 left-4 flex flex-col items-start gap-2">
         <div className="pointer-events-auto">
           <SummaryCard trailheads={trailheadElevations} sounding={displayedSounding} />
-        </div>
-        <div className="pointer-events-auto">
-          <WindAdvisoryCard sounding={displayedSounding} />
         </div>
       </div>
 

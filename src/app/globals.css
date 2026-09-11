@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6f5;
+  --foreground: #1c2624;
+  --surface: #ffffff;
+  --surface-border: #d8ddda;
+  --muted: #6b7876;
+
+  /* Marine-layer status text colors — the readable ink for each state on a
+     light surface. The swatch/wash hues themselves live in src/lib/colors.ts
+     (used by the map overlay + legend, which need raw rgba, not CSS vars). */
+  --accent: #1fa3e0;
+  --accent-ink: #0e7aab;
+  --layer-ink: #26312d;
+  --uncertain-ink: #16303a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-layer-ink: var(--layer-ink);
+  --color-uncertain-ink: var(--uncertain-ink);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #14181a;
+    --foreground: #e4e9e7;
+    --surface: #1b2023;
+    --surface-border: #2c3336;
+    --muted: #8b9794;
+
+    --accent-ink: #7cd0f0;
+    --layer-ink: #c9cfcb;
+    --uncertain-ink: #a9d0e0;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Data readouts (elevations, heights, timestamps, percentages) use the
+   monospace face with tabular figures so numbers read like instrument
+   digits rather than body prose — the one typographic signature this pass
+   uses consistently across cards and the sounding modal. */
+.font-data {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
