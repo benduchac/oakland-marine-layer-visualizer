@@ -20,10 +20,14 @@ export interface Trailhead {
 // Elevation isn't stored here — it's queried live from the same Mapbox
 // Terrain-RGB data the marine-layer overlay uses (see MarineLayerMap), so
 // it's always consistent with what the map itself is showing at that point.
+// Ordered highest to lowest elevation (per USGS EPQS), so the summary card
+// and sounding-profile labels list top-down without re-sorting at render
+// time.
 export const TRAILHEADS: Trailhead[] = [
+  { name: "Vollmer Peak Summit", lat: 37.883710022142715, lon: -122.22172143992286 },
   { name: "Steam Trains Overlook", lat: 37.879803, lon: -122.221572 },
-  { name: "Piedmont Pines", lat: 37.82823, lon: -122.198951 },
   { name: "Grizzly Peak Log", lat: 37.872287, lon: -122.220358 },
+  { name: "Piedmont Pines", lat: 37.82823, lon: -122.198951 },
 ];
 
 export interface LatLon {

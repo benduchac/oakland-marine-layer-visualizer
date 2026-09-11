@@ -16,5 +16,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      # The sweep can't cancel its own later scheduled triggers, so instead
+      # each run checks the already-stored record (a cheap read, no upstream
+      # archive call) and skips re-fetching once today's 12Z launch is in —
+      # avoids hammering the archive for the rest of the window once we have
+      # what we came for.
+      - name: Check whether today's sounding is already fetched
+        id: check
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          response=$(curl -s https://steamer-view.vercel.app/api/sounding || echo '{}')
+          launch_date=$(echo "$response" | jq -r '.data.launchTimeUTC // empty' | cut -c1-10)
+          if [ "$launch_date" = "$today" ]; then
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Trigger sounding fetch
+        if: steps.check.outputs.fresh != 'true'
         run: curl -sf https://steamer-view.vercel.app/api/cron/fetch-sounding
