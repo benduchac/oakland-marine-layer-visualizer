@@ -66,6 +66,7 @@ interface InfoPanelProps {
   isDevOverride?: boolean;
   soundingStatus: FetchStatus;
   hrrrStatus: FetchStatus;
+  soundingStale?: boolean;
   onRetrySounding: () => void;
   onRetryHrrr: () => void;
 }
@@ -78,6 +79,7 @@ export default function InfoPanel({
   isDevOverride,
   soundingStatus,
   hrrrStatus,
+  soundingStale,
   onRetrySounding,
   onRetryHrrr,
 }: InfoPanelProps) {
@@ -93,6 +95,18 @@ export default function InfoPanel({
           <StatusMessage status={soundingStatus} onRetry={onRetrySounding} label="sounding" />
         ) : (
           <>
+            {soundingStale && !isDevOverride && (
+              <div className="flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                <span>Today&rsquo;s 12Z sounding hasn&rsquo;t posted yet — showing a prior day.</span>
+                <button
+                  type="button"
+                  onClick={onRetrySounding}
+                  className="ml-auto shrink-0 rounded border border-amber-400 px-2 py-0.5 font-medium hover:bg-amber-100 dark:hover:bg-amber-900"
+                >
+                  Fetch now
+                </button>
+              </div>
+            )}
             {isDevOverride && (
               <div className="inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                 DEV PREVIEW — not live data

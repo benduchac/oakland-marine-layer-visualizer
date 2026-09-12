@@ -6,7 +6,7 @@ import ModeToggle from "@/components/ModeToggle";
 import InfoPanel from "@/components/InfoPanel";
 import DevSoundingPicker from "@/components/DevSoundingPicker";
 import SummaryCard from "@/components/SummaryCard";
-import type { FetchStatus, ViewMode } from "@/lib/mode";
+import { isSoundingStale, type FetchStatus, type ViewMode } from "@/lib/mode";
 import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/types";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -66,6 +66,7 @@ export default function Home() {
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const displayedSounding = soundingOverride ?? sounding;
   const displayedSoundingStatus = soundingOverride ? "ready" : soundingStatus;
+  const soundingStale = !soundingOverride && isSoundingStale(sounding);
 
   return (
     <div className="relative flex h-dvh w-full flex-col">
@@ -107,6 +108,7 @@ export default function Home() {
             trailheads={trailheadElevations}
             isDevOverride={soundingOverride != null}
             soundingStatus={displayedSoundingStatus}
+            soundingStale={soundingStale}
             hrrrStatus={hrrrStatus}
             onRetrySounding={retrySounding}
             onRetryHrrr={retryHrrr}
