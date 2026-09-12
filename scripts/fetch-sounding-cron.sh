@@ -4,8 +4,10 @@
 # in case this machine is down — whichever gets there first wins, since both
 # just no-op once today's sounding is already stored.
 #
-# Mirrors the GH Actions sweep window: the KOAK 12Z sounding has posted as
-# late as 12:43Z in the past, so this needs to keep checking past 12:00Z.
+# Runs every minute through the 12Z hour (crontab: `* 12 * * *`), starting
+# right at 12:00Z rather than GH Actions' 12:15Z, so the log's first
+# "fetching" line pins down how soon the KOAK 12Z sounding actually posts —
+# observed as late as 12:43Z in the past, hence the 13:00Z catch-all too.
 #
 # If CRON_SECRET is ever set in Vercel, uncomment the header line below and
 # export CRON_SECRET in this script's environment (e.g. via crontab or a
