@@ -1,0 +1,17 @@
+[Unit]
+Description=Run fetch-sounding.service every minute through the 12Z hour, plus a 13:00Z catch-all
+
+# Replaces a cron-based schedule: this box's cron doesn't implement CRON_TZ
+# (confirmed via `man 5 crontab`), so a `CRON_TZ=UTC ...` job line just gets
+# parsed as an inert environment-variable assignment instead of a real job
+# — no error, nothing in syslog, the job simply never runs. systemd's
+# OnCalendar= supports an explicit timezone natively, so this stays correct
+# across DST without a manual edit every November/March.
+[Timer]
+OnCalendar=*-*-* 12:*:00 UTC
+OnCalendar=*-*-* 13:00:00 UTC
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

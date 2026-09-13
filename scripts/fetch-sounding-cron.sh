@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Primary sounding-fetch sweep, meant to run from cron on an always-on box.
-# GitHub Actions runs the same check as a fallback (.github/workflows/fetch-sounding.yml)
-# in case this machine is down — whichever gets there first wins, since both
-# just no-op once today's sounding is already stored.
+# Primary sounding-fetch sweep, meant to run on an always-on box via the
+# systemd units in scripts/systemd/ (not cron — see fetch-sounding.timer for
+# why). GitHub Actions runs the same check as a fallback
+# (.github/workflows/fetch-sounding.yml) in case this machine is down —
+# whichever gets there first wins, since both just no-op once today's
+# sounding is already stored.
 #
-# Runs every minute through the 12Z hour (crontab: `* 12 * * *`), starting
-# right at 12:00Z rather than GH Actions' 12:15Z, so the log's first
-# "fetching" line pins down how soon the KOAK 12Z sounding actually posts —
-# observed as late as 12:43Z in the past, hence the 13:00Z catch-all too.
+# Runs every minute through the 12Z hour, starting right at 12:00Z rather
+# than GH Actions' 12:15Z, so the log's first "fetching" line pins down how
+# soon the KOAK 12Z sounding actually posts — observed as late as 12:43Z in
+# the past, hence the 13:00Z catch-all too.
 #
-# If CRON_SECRET is ever set in Vercel, uncomment the header line below and
-# export CRON_SECRET in this script's environment (e.g. via crontab or a
-# sourced env file) — see README.md "Deploying".
+# If CRON_SECRET is ever set in Vercel, set it in fetch-sounding.service's
+# [Service] block (Environment=CRON_SECRET=...) — see README.md "Deploying".
 set -euo pipefail
 
 APP_URL="https://steamer-view.vercel.app"

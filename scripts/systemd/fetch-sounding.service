@@ -1,0 +1,7 @@
+[Unit]
+Description=Fetch KOAK 12Z sounding for oakland-marine-layer-visualizer
+
+[Service]
+Type=oneshot
+User=ben
+ExecStart=/home/ben/oakland-marine-layer-visualizer/scripts/fetch-sounding-cron.sh
