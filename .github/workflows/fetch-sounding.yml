@@ -2,9 +2,15 @@ name: Fetch sounding
 
 # Vercel Hobby cron jobs only have +/-59min scheduling precision, which is
 # useless for "have fresh data before a pre-dawn bike ride." GitHub Actions
-# schedules are much tighter, so this sweeps the window where the KOAK 12Z
-# sounding tends to post (observed as late as 12:43Z on 2026-09-11) instead
-# of relying on Vercel's own cron feature.
+# schedules are tighter in principle, but in practice this workflow's own
+# schedule events have fired anywhere from on-time to 6+ hours late (e.g.
+# 18:05Z on 2026-09-14) — so the wide sweep here is a hedge against GH's own
+# scheduling slop, not the KOAK sounding itself: it's shown up within ~2min
+# of 12:00Z the one morning we've timed it closely (balloons for a 12Z
+# sounding launch ~11Z, an hour early, per NWS convention). Given GH
+# Actions' unreliability, a home-server systemd timer is now the primary
+# fetch path — see scripts/systemd/fetch-sounding.timer — and this workflow
+# is just the fallback.
 on:
   schedule:
     - cron: "15,20,25,30,35,40,45,50,55 12 * * *"

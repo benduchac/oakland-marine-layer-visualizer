@@ -6,10 +6,12 @@
 # whichever gets there first wins, since both just no-op once today's
 # sounding is already stored.
 #
-# Runs every minute through the 12Z hour, starting right at 12:00Z rather
-# than GH Actions' 12:15Z, so the log's first "fetching" line pins down how
-# soon the KOAK 12Z sounding actually posts — observed as late as 12:43Z in
-# the past, hence the 13:00Z catch-all too.
+# Runs every minute through the 12Z hour, starting right at 12:00Z. The
+# actual balloon for a 12Z sounding launches ~11Z — an hour early, per NWS
+# convention — and clears the 0-2000ft band this app cares about within a
+# couple minutes of that, consistent with the archive having it ready by
+# 12:02Z the one morning (2026-09-14) we've timed this closely. The 13:00Z
+# catch-all stays as a hedge for slower mornings.
 #
 # If CRON_SECRET is ever set in Vercel, set it in fetch-sounding.service's
 # [Service] block (Environment=CRON_SECRET=...) — see README.md "Deploying".
