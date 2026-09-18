@@ -14,7 +14,11 @@ function blobConfigured(): boolean {
 
 export async function readJSON<T>(key: string): Promise<T | null> {
   if (blobConfigured()) {
-    const result = await get(key, { access: "private" });
+    // useCache: false — otherwise this reads through Vercel Blob's CDN
+    // cache, which can keep serving yesterday's record for a while after
+    // the cron's overwrite (see fetch-sounding-cron.sh's note on the same
+    // read-after-write lag).
+    const result = await get(key, { access: "private", useCache: false });
     if (!result?.stream) return null;
     const text = await new Response(result.stream).text();
     return JSON.parse(text) as T;
