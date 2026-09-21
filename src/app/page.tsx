@@ -11,6 +11,12 @@ import type { HrrrProxyRecord, SoundingRecord, TrailheadElevation } from "@/lib/
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+// Backoff schedule for auto-retrying the sounding fetch while it's "empty".
+// Covers transient read failures (e.g. the 2026-09-21 case where the app
+// showed no sounding for hours after a confirmed-successful cron write)
+// without requiring a manual retry click before a morning ride.
+const SOUNDING_AUTO_RETRY_DELAYS_MS = [3000, 8000, 20000];
+
 async function fetchOrNull<T>(url: string): Promise<T | null> {
   try {
     const res = await fetch(url);
@@ -30,6 +36,7 @@ export default function Home() {
   const [soundingStatus, setSoundingStatus] = useState<FetchStatus>("loading");
   const [hrrrStatus, setHrrrStatus] = useState<FetchStatus>("loading");
   const [trailheadElevations, setTrailheadElevations] = useState<TrailheadElevation[]>([]);
+  const [soundingAutoRetryCount, setSoundingAutoRetryCount] = useState(0);
 
   useEffect(() => {
     fetchOrNull<SoundingRecord>("/api/sounding").then((data) => {
@@ -54,7 +61,20 @@ export default function Home() {
     const data = await fetchOrNull<SoundingRecord>("/api/cron/fetch-sounding");
     setSounding(data);
     setSoundingStatus(data ? "ready" : "empty");
+    // Reset so a later failure (after this success) gets the full backoff
+    // schedule again instead of picking up where a prior run left off.
+    if (data) setSoundingAutoRetryCount(0);
   }
+
+  useEffect(() => {
+    if (soundingStatus !== "empty" || soundingAutoRetryCount >= SOUNDING_AUTO_RETRY_DELAYS_MS.length) return;
+
+    const timer = setTimeout(() => {
+      setSoundingAutoRetryCount((n) => n + 1);
+      retrySounding();
+    }, SOUNDING_AUTO_RETRY_DELAYS_MS[soundingAutoRetryCount]);
+    return () => clearTimeout(timer);
+  }, [soundingStatus, soundingAutoRetryCount]);
 
   async function retryHrrr() {
     setHrrrStatus("loading");
