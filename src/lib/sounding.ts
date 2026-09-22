@@ -259,20 +259,15 @@ export async function fetchSoundingForLaunch(launchDate: Date, hourUTC: number):
 }
 
 /**
- * Fetches the most recent ~12Z (5am local) KOAK sounding. Tries today's
- * launch first, then falls back to yesterday's in case today's hasn't
- * posted yet (the app cares specifically about the early-morning launch —
- * spec §3.2).
+ * Fetches today's ~12Z (5am local) KOAK sounding. Returns null if it hasn't
+ * posted to the archive yet — callers should leave any previously stored
+ * record untouched rather than overwrite it with an older day's data, so a
+ * failed fetch reads as an honest failure to retry logic (curl -sf, GH
+ * Actions' freshness check) instead of a false success. The frontend still
+ * shows that older record, just flagged stale (see isSoundingStale) —
+ * "users should never wonder if they're looking at stale data" per spec §6
+ * doesn't require this function to manufacture a same-day-looking result.
  */
 export async function fetchLatestSounding(): Promise<LatestSounding | null> {
-  const now = new Date();
-
-  for (const daysAgo of [0, 1]) {
-    const launchDate = new Date(now);
-    launchDate.setUTCDate(launchDate.getUTCDate() - daysAgo);
-    const result = await fetchSoundingForLaunch(launchDate, 12);
-    if (result) return result;
-  }
-
-  return null;
+  return fetchSoundingForLaunch(new Date(), 12);
 }

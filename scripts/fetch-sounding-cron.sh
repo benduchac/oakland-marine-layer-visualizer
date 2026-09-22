@@ -57,21 +57,16 @@ if [ -n "${CRON_SECRET:-}" ]; then
   curl_auth_args=(-H "Authorization: Bearer ${CRON_SECRET}")
 fi
 
-if fetch_response=$(curl -sf "${curl_auth_args[@]}" "${APP_URL}/api/cron/fetch-sounding"); then
-  # A 200 here doesn't mean we got TODAY's launch — fetchLatestSounding()
-  # falls back to the prior day's data (and still returns 200) if today's
-  # hasn't posted to the archive yet. Checking curl's exit status alone
-  # (2026-09-22) marked the day done off that fallback on the very first
-  # 12:00:01Z run, when the archive was still delayed, silently skipping
-  # every per-minute retry for the rest of the sweep.
-  fetched_launch_date=$(echo "$fetch_response" | jq -r '.data.launchTimeUTC // empty' | cut -c1-10)
-  if [ "$fetched_launch_date" = "$today" ]; then
-    log "fetch succeeded: got today's launch"
-    echo "$today" > "$STATE_FILE"
-  else
-    log "fetch returned launch date '${fetched_launch_date:-none}', not today yet — will retry"
-  fi
+# /api/cron/fetch-sounding no longer has a fallback day to hide behind (see
+# fetchLatestSounding() in src/lib/sounding.ts) — it 502s until today's KOAK
+# launch actually posts, so curl -sf's exit status alone is a reliable
+# signal now. (Previously it could 200 off a prior day's data, which fooled
+# this exact check into marking the day done early — see git history on
+# this file for the 2026-09-19/20/22 incidents that traced back to it.)
+if curl -sf "${curl_auth_args[@]}" "${APP_URL}/api/cron/fetch-sounding" > /dev/null; then
+  log "fetch succeeded: got today's launch"
+  echo "$today" > "$STATE_FILE"
 else
-  log "fetch failed"
+  log "fetch failed: today's launch not posted yet, will retry"
   exit 1
 fi

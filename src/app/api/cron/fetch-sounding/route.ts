@@ -13,7 +13,14 @@ export async function GET(request: Request) {
 
   const result = await fetchLatestSounding();
   if (!result) {
-    return NextResponse.json({ ok: false, error: "No sounding data available" }, { status: 502 });
+    // Expected, not exceptional: the archive just hasn't posted today's KOAK
+    // launch yet. Leaves any existing stored record untouched so retry
+    // logic (fetch-sounding-cron.sh, the GH Actions sweep) sees an honest
+    // failure to retry against, instead of a same-day-looking success.
+    return NextResponse.json(
+      { ok: false, error: "Today's KOAK launch hasn't posted to the archive yet" },
+      { status: 502 }
+    );
   }
 
   const record = buildSoundingRecord(KOAK_STATION_ID, result);
