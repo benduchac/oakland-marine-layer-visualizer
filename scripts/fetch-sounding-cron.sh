@@ -57,9 +57,20 @@ if [ -n "${CRON_SECRET:-}" ]; then
   curl_auth_args=(-H "Authorization: Bearer ${CRON_SECRET}")
 fi
 
-if curl -sf "${curl_auth_args[@]}" "${APP_URL}/api/cron/fetch-sounding" > /dev/null; then
-  log "fetch succeeded"
-  echo "$today" > "$STATE_FILE"
+if fetch_response=$(curl -sf "${curl_auth_args[@]}" "${APP_URL}/api/cron/fetch-sounding"); then
+  # A 200 here doesn't mean we got TODAY's launch — fetchLatestSounding()
+  # falls back to the prior day's data (and still returns 200) if today's
+  # hasn't posted to the archive yet. Checking curl's exit status alone
+  # (2026-09-22) marked the day done off that fallback on the very first
+  # 12:00:01Z run, when the archive was still delayed, silently skipping
+  # every per-minute retry for the rest of the sweep.
+  fetched_launch_date=$(echo "$fetch_response" | jq -r '.data.launchTimeUTC // empty' | cut -c1-10)
+  if [ "$fetched_launch_date" = "$today" ]; then
+    log "fetch succeeded: got today's launch"
+    echo "$today" > "$STATE_FILE"
+  else
+    log "fetch returned launch date '${fetched_launch_date:-none}', not today yet — will retry"
+  fi
 else
   log "fetch failed"
   exit 1
