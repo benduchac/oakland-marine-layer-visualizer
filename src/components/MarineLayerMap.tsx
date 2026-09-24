@@ -179,6 +179,12 @@ export default function MarineLayerMap({
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     map.on("load", () => {
+      // The initial fitBounds() leaves BOUNDS' edges visible on all sides,
+      // especially on narrow mobile viewports — nudge in one zoom step so
+      // the plane fills the screen instead. duration: 0 keeps this from
+      // showing as a visible zoom-in animation right after load.
+      map.zoomIn({ duration: 0 });
+
       map.addSource(DEM_SOURCE_ID, {
         type: "raster-dem",
         url: "mapbox://mapbox.mapbox-terrain-dem-v1",
